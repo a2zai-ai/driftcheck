@@ -1,0 +1,49 @@
+name: DriftCheck
+description: Run local-first AI regression checks for prompts, agents, RAG, and model migrations.
+inputs:
+  pack:
+    description: Pack id/category to run. Uses all packs by default.
+    required: false
+    default: ''
+  publish:
+    description: Publish the run report to hosted A2ZAI.
+    required: false
+    default: 'false'
+  fail-threshold:
+    description: Minimum overall score required to pass.
+    required: false
+    default: '70'
+  driftcheck-token:
+    description: Token for hosted A2ZAI publish.
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Install DriftCheck
+      shell: bash
+      run: npm install --no-save @a2zai/driftcheck
+    - name: Initialize packs if missing
+      shell: bash
+      run: |
+        if [ ! -d ".driftcheck/checks" ]; then
+          npx @a2zai/driftcheck init
+        fi
+    - name: Run DriftCheck
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.pack }}" ]; then
+          npx @a2zai/driftcheck check --pack "${{ inputs.pack }}"
+        else
+          npx @a2zai/driftcheck check
+        fi
+    - name: Publish proof card
+      if: inputs.publish == 'true'
+      shell: bash
+      env:
+        DRIFTCHECK_TOKEN: ${{ inputs.driftcheck-token }}
+      run: npx @a2zai/driftcheck publish --run .driftcheck/runs/latest.json --public
+    - name: Enforce threshold
+      shell: bash
+      run: |
+        node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('.driftcheck/runs/latest.json','utf8')); const min=Number('${{ inputs.fail-threshold }}'); if ((r.scores?.overall ?? 0) < min) { console.error('DriftCheck score below threshold:', r.scores?.overall, '<', min); process.exit(1); }"

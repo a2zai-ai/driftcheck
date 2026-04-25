@@ -1,0 +1,5 @@
+node_modules/
+.DS_Store
+.driftcheck/
+driftcheck-report.md
+*.tgz
