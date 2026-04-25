@@ -7,8 +7,8 @@ DriftCheck helps catch behavior drift when prompts, tools, RAG flows, SDKs, or m
 ## Quick Start
 
 ```bash
-npx @a2zai/driftcheck init
-npx @a2zai/driftcheck check
+npx @a2zai-ai/driftcheck init
+npx @a2zai-ai/driftcheck check
 ```
 
 During local package development:
@@ -33,9 +33,9 @@ DriftCheck creates:
 ## Run One Pack
 
 ```bash
-npx @a2zai/driftcheck check --pack tool-calling
-npx @a2zai/driftcheck check --pack rag-faithfulness
-npx @a2zai/driftcheck check --pack model-migration
+npx @a2zai-ai/driftcheck check --pack tool-calling
+npx @a2zai-ai/driftcheck check --pack rag-faithfulness
+npx @a2zai-ai/driftcheck check --pack model-migration
 ```
 
 ## Publish A Proof Card
@@ -43,13 +43,13 @@ npx @a2zai/driftcheck check --pack model-migration
 Publishing is explicit. Reports stay local unless you run `publish`.
 
 ```bash
-DRIFTCHECK_TOKEN="paste-token-here" npx @a2zai/driftcheck publish --run .driftcheck/runs/latest.json --public
+DRIFTCHECK_TOKEN="paste-token-here" npx @a2zai-ai/driftcheck publish --run .driftcheck/runs/latest.json --public
 ```
 
 The hosted proof layer currently lives at A2ZAI:
 
 ```bash
-DRIFTCHECK_API_URL="https://www.a2zai.ai" npx @a2zai/driftcheck publish --run .driftcheck/runs/latest.json --public
+DRIFTCHECK_API_URL="https://www.a2zai.ai" npx @a2zai-ai/driftcheck publish --run .driftcheck/runs/latest.json --public
 ```
 
 ## Pack Format
@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: a2zai/driftcheck@v0
+      - uses: a2zai-ai/driftcheck@v0
         with:
           fail-threshold: 70
 ```
@@ -133,7 +133,7 @@ DriftCheck is local-first:
 
 ## Roadmap
 
-- npm package publication as `@a2zai/driftcheck`
-- standalone `a2zai/driftcheck` public repo
+- npm package publication as `@a2zai-ai/driftcheck`
+- standalone `a2zai-ai/driftcheck` public repo
 - richer GitHub Action summaries
 - more starter packs for agents, support bots, coding workflows, and RAG apps

@@ -1,5 +1,5 @@
 {
-  "name": "@a2zai/driftcheck",
+  "name": "@a2zai-ai/driftcheck",
   "version": "0.1.0",
   "description": "Local-first regression intelligence for AI builders.",
   "license": "MIT",

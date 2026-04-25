@@ -22,27 +22,27 @@ runs:
   steps:
     - name: Install DriftCheck
       shell: bash
-      run: npm install --no-save @a2zai/driftcheck
+      run: npm install --no-save @a2zai-ai/driftcheck
     - name: Initialize packs if missing
       shell: bash
       run: |
         if [ ! -d ".driftcheck/checks" ]; then
-          npx @a2zai/driftcheck init
+          npx @a2zai-ai/driftcheck init
         fi
     - name: Run DriftCheck
       shell: bash
       run: |
         if [ -n "${{ inputs.pack }}" ]; then
-          npx @a2zai/driftcheck check --pack "${{ inputs.pack }}"
+          npx @a2zai-ai/driftcheck check --pack "${{ inputs.pack }}"
         else
-          npx @a2zai/driftcheck check
+          npx @a2zai-ai/driftcheck check
         fi
     - name: Publish proof card
       if: inputs.publish == 'true'
       shell: bash
       env:
         DRIFTCHECK_TOKEN: ${{ inputs.driftcheck-token }}
-      run: npx @a2zai/driftcheck publish --run .driftcheck/runs/latest.json --public
+      run: npx @a2zai-ai/driftcheck publish --run .driftcheck/runs/latest.json --public
     - name: Enforce threshold
       shell: bash
       run: |
