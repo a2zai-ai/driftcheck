@@ -30,6 +30,12 @@ DriftCheck creates:
 - **RAG Faithfulness**: grounded answers, citations, missing-context refusal, and source scope.
 - **Model Migration**: quality, cost, latency, and safety drift when moving between models.
 
+To also write a live model comparison pack:
+
+```bash
+npx @a2zai-ai/driftcheck init --live
+```
+
 ## Run One Pack
 
 ```bash
@@ -59,6 +65,18 @@ npx @a2zai-ai/driftcheck check --pack model-migration
 ```
 
 Static packs still run without API keys. Model overrides only affect packs that define `execution.provider`.
+
+## One-Command Live Compare
+
+Use `compare` when you want to check a model migration without editing YAML first:
+
+```bash
+OPENAI_API_KEY="sk-..." npx @a2zai-ai/driftcheck compare \
+  --baseline-model gpt-4o-mini \
+  --candidate-model gpt-4.1-mini
+```
+
+This runs the built-in Live Model Compare pack and writes the same `.driftcheck/runs/latest.json` and `driftcheck-report.md` outputs.
 
 ## Publish A Proof Card
 

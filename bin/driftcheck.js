@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
-const { STARTER_PACKS } = require('../lib/starter-packs');
+const { LIVE_MODEL_COMPARE_PACK, LIVE_PACKS, STARTER_PACKS } = require('../lib/starter-packs');
 const { combineReports, getProject, loadPack, renderMarkdown, runPack } = require('../lib/engine');
 
 function parseArgs(argv) {
@@ -14,7 +14,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = item.slice(2);
-    if (key === 'force' || key === 'public') {
+    if (key === 'force' || key === 'live' || key === 'public') {
       args[key] = true;
       continue;
     }
@@ -38,8 +38,9 @@ function printHelp() {
   console.log(`DriftCheck local-first regression intelligence for AI builders
 
 Usage:
-  driftcheck init [--force]
+  driftcheck init [--force] [--live]
   driftcheck check [--pack tool-calling] [--baseline-model gpt-4o-mini] [--candidate-model gpt-4.1-mini]
+  driftcheck compare --baseline-model gpt-4o-mini --candidate-model gpt-4.1-mini
   driftcheck publish --run .driftcheck/runs/latest.json [--public]
 
 Environment:
@@ -64,12 +65,14 @@ function init(args) {
   const checksDir = path.join(cwd, '.driftcheck', 'checks');
   ensureDir(checksDir);
   let written = 0;
-  for (const pack of STARTER_PACKS) {
+  const packs = args.live ? [...STARTER_PACKS, ...LIVE_PACKS] : STARTER_PACKS;
+  for (const pack of packs) {
     const didWrite = writeFileIfSafe(path.join(checksDir, pack.filename), pack.yaml, Boolean(args.force));
     if (didWrite) written += 1;
   }
   console.log(`DriftCheck initialized ${written} starter pack${written === 1 ? '' : 's'} in .driftcheck/checks.`);
   console.log('Run: driftcheck check');
+  if (!args.live) console.log('For live model comparison packs, run: driftcheck init --live');
 }
 
 function findPackFiles(cwd) {
@@ -103,6 +106,32 @@ async function check(args) {
   }
 
   const report = combineReports(reports, project, createdAt);
+  writeReport(cwd, report, createdAt);
+}
+
+async function compare(args) {
+  const cwd = process.cwd();
+  const project = getProject(cwd);
+  const createdAt = new Date().toISOString();
+  const modelOverrides = getModelOverrides(args);
+  if (!modelOverrides.baselineModel || !modelOverrides.candidateModel) {
+    throw new Error('compare requires --baseline-model and --candidate-model.');
+  }
+  const pack = loadInlinePack(LIVE_MODEL_COMPARE_PACK);
+  console.log(`Comparing ${modelOverrides.baselineModel} → ${modelOverrides.candidateModel}...`);
+  const report = await runPack(pack, project, createdAt, { modelOverrides });
+  writeReport(cwd, report, createdAt);
+}
+
+function loadInlinePack(pack) {
+  const tmpDir = path.join(process.cwd(), '.driftcheck', 'tmp');
+  ensureDir(tmpDir);
+  const filePath = path.join(tmpDir, pack.filename);
+  fs.writeFileSync(filePath, pack.yaml, 'utf8');
+  return loadPack(filePath);
+}
+
+function writeReport(cwd, report, createdAt) {
   const runsDir = path.join(cwd, '.driftcheck', 'runs');
   ensureDir(runsDir);
   const timestamp = createdAt.replace(/[:.]/g, '-');
@@ -147,8 +176,9 @@ async function main() {
   try {
     if (!command || command === 'help' || command === '--help') return printHelp();
     if (command === 'init') return init(args);
-    if (command === 'check') return check(args);
-    if (command === 'publish') return publish(args);
+    if (command === 'check') return await check(args);
+    if (command === 'compare') return await compare(args);
+    if (command === 'publish') return await publish(args);
     throw new Error(`Unknown command: ${command}`);
   } catch (error) {
     console.error(`DriftCheck error: ${error.message}`);
