@@ -58,6 +58,13 @@ runs:
       env:
         DRIFTCHECK_TOKEN: ${{ inputs.driftcheck-token }}
       run: npx @a2zai-ai/driftcheck publish --run .driftcheck/runs/latest.json --public
+    - name: Write DriftCheck summary
+      if: always()
+      shell: bash
+      run: |
+        if [ -f ".driftcheck/runs/latest.json" ] && [ -n "$GITHUB_STEP_SUMMARY" ]; then
+          npx @a2zai-ai/driftcheck summary --run .driftcheck/runs/latest.json --fail-threshold "${{ inputs.fail-threshold }}" >> "$GITHUB_STEP_SUMMARY"
+        fi
     - name: Enforce threshold
       shell: bash
       run: |

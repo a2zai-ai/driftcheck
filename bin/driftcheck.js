@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { LIVE_MODEL_COMPARE_PACK, LIVE_PACKS, STARTER_PACKS } = require('../lib/starter-packs');
-const { combineReports, getProject, loadPack, renderMarkdown, runPack } = require('../lib/engine');
+const { combineReports, getProject, loadPack, renderGithubSummary, renderMarkdown, runPack } = require('../lib/engine');
 
 function parseArgs(argv) {
   const args = { _: [] };
@@ -41,6 +41,7 @@ Usage:
   driftcheck init [--force] [--live]
   driftcheck check [--pack tool-calling] [--baseline-model gpt-4o-mini] [--candidate-model gpt-4.1-mini]
   driftcheck compare --baseline-model gpt-4o-mini --candidate-model gpt-4.1-mini
+  driftcheck summary [--run .driftcheck/runs/latest.json] [--fail-threshold 70]
   driftcheck publish --run .driftcheck/runs/latest.json [--public]
 
 Environment:
@@ -170,6 +171,15 @@ async function publish(args) {
   console.log(`Published ${body.visibility} proof: ${body.url}`);
 }
 
+function summary(args) {
+  const cwd = process.cwd();
+  const runPath = path.resolve(cwd, args.run || path.join('.driftcheck', 'runs', 'latest.json'));
+  if (!fs.existsSync(runPath)) throw new Error(`Run report not found: ${runPath}`);
+  const report = JSON.parse(fs.readFileSync(runPath, 'utf8'));
+  const failThreshold = Number(args['fail-threshold'] || 70);
+  console.log(renderGithubSummary(report, { failThreshold: Number.isFinite(failThreshold) ? failThreshold : 70 }));
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = args._[0];
@@ -178,6 +188,7 @@ async function main() {
     if (command === 'init') return init(args);
     if (command === 'check') return await check(args);
     if (command === 'compare') return await compare(args);
+    if (command === 'summary') return summary(args);
     if (command === 'publish') return await publish(args);
     throw new Error(`Unknown command: ${command}`);
   } catch (error) {

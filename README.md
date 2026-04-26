@@ -78,6 +78,14 @@ OPENAI_API_KEY="sk-..." npx @a2zai-ai/driftcheck compare \
 
 This runs the built-in Live Model Compare pack and writes the same `.driftcheck/runs/latest.json` and `driftcheck-report.md` outputs.
 
+## Generate A CI Summary
+
+```bash
+npx @a2zai-ai/driftcheck summary --run .driftcheck/runs/latest.json
+```
+
+The GitHub Action writes this summary to the workflow run automatically, so PR authors can see the overall score, dimension scores, model pair, and cases needing review without opening artifacts.
+
 ## Publish A Proof Card
 
 Publishing is explicit. Reports stay local unless you run `publish`.
