@@ -38,6 +38,28 @@ npx @a2zai-ai/driftcheck check --pack rag-faithfulness
 npx @a2zai-ai/driftcheck check --pack model-migration
 ```
 
+## Override Models From The CLI
+
+For packs with a live `execution` block, you can override the baseline and candidate models without editing YAML:
+
+```bash
+OPENAI_API_KEY="sk-..." npx @a2zai-ai/driftcheck check \
+  --pack model-migration \
+  --baseline-model gpt-4o-mini \
+  --candidate-model gpt-4.1-mini
+```
+
+The same values can be set with environment variables:
+
+```bash
+DRIFTCHECK_BASELINE_MODEL=gpt-4o-mini \
+DRIFTCHECK_CANDIDATE_MODEL=gpt-4.1-mini \
+OPENAI_API_KEY="sk-..." \
+npx @a2zai-ai/driftcheck check --pack model-migration
+```
+
+Static packs still run without API keys. Model overrides only affect packs that define `execution.provider`.
+
 ## Publish A Proof Card
 
 Publishing is explicit. Reports stay local unless you run `publish`.
@@ -120,6 +142,8 @@ jobs:
       - uses: a2zai-ai/driftcheck@v0
         with:
           fail-threshold: 70
+          baseline-model: gpt-4o-mini
+          candidate-model: gpt-4.1-mini
 ```
 
 ## Privacy

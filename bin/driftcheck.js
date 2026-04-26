@@ -39,7 +39,7 @@ function printHelp() {
 
 Usage:
   driftcheck init [--force]
-  driftcheck check [--pack tool-calling]
+  driftcheck check [--pack tool-calling] [--baseline-model gpt-4o-mini] [--candidate-model gpt-4.1-mini]
   driftcheck publish --run .driftcheck/runs/latest.json [--public]
 
 Environment:
@@ -50,6 +50,13 @@ Environment:
   A2ZAI_TOKEN           Also accepted as a publish token
   A2ZAI_PUBLISH_TOKEN   Also accepted as a publish token
 `);
+}
+
+function getModelOverrides(args) {
+  return {
+    baselineModel: args['baseline-model'] || process.env.DRIFTCHECK_BASELINE_MODEL || '',
+    candidateModel: args['candidate-model'] || process.env.DRIFTCHECK_CANDIDATE_MODEL || '',
+  };
 }
 
 function init(args) {
@@ -89,9 +96,10 @@ async function check(args) {
   if (packs.length === 0) throw new Error(`No pack matched "${selected}".`);
 
   const reports = [];
+  const modelOverrides = getModelOverrides(args);
   for (const pack of packs) {
     console.log(`Running ${pack.name}...`);
-    reports.push(await runPack(pack, project, createdAt));
+    reports.push(await runPack(pack, project, createdAt, { modelOverrides }));
   }
 
   const report = combineReports(reports, project, createdAt);

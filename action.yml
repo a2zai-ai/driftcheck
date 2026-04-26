@@ -13,6 +13,14 @@ inputs:
     description: Minimum overall score required to pass.
     required: false
     default: '70'
+  baseline-model:
+    description: Override execution.baselineModel for live model packs.
+    required: false
+    default: ''
+  candidate-model:
+    description: Override execution.candidateModel for live model packs.
+    required: false
+    default: ''
   driftcheck-token:
     description: Token for hosted A2ZAI publish.
     required: false
@@ -32,10 +40,17 @@ runs:
     - name: Run DriftCheck
       shell: bash
       run: |
+        MODEL_ARGS=()
+        if [ -n "${{ inputs.baseline-model }}" ]; then
+          MODEL_ARGS+=(--baseline-model "${{ inputs.baseline-model }}")
+        fi
+        if [ -n "${{ inputs.candidate-model }}" ]; then
+          MODEL_ARGS+=(--candidate-model "${{ inputs.candidate-model }}")
+        fi
         if [ -n "${{ inputs.pack }}" ]; then
-          npx @a2zai-ai/driftcheck check --pack "${{ inputs.pack }}"
+          npx @a2zai-ai/driftcheck check --pack "${{ inputs.pack }}" "${MODEL_ARGS[@]}"
         else
-          npx @a2zai-ai/driftcheck check
+          npx @a2zai-ai/driftcheck check "${MODEL_ARGS[@]}"
         fi
     - name: Publish proof card
       if: inputs.publish == 'true'
