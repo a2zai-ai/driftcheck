@@ -29,6 +29,7 @@ DriftCheck creates:
 - **Tool-Calling Reliability**: schema-valid tool arguments, safe fallback behavior, and hallucinated tools.
 - **RAG Faithfulness**: grounded answers, citations, missing-context refusal, and source scope.
 - **Model Migration**: quality, cost, latency, and safety drift when moving between models.
+- **Agent Workflows**: tool recovery, permission boundaries, sensitive-action confirmation, and state consistency.
 
 To also write a live model comparison pack:
 
@@ -78,6 +79,18 @@ OPENAI_API_KEY="sk-..." npx @a2zai-ai/driftcheck compare \
 
 This runs the built-in Live Model Compare pack and writes the same `.driftcheck/runs/latest.json` and `driftcheck-report.md` outputs.
 
+## Compare Two Runs
+
+Use `diff` to turn two DriftCheck reports into a regression review:
+
+```bash
+npx @a2zai-ai/driftcheck diff \
+  --base .driftcheck/runs/baseline.json \
+  --head .driftcheck/runs/latest.json
+```
+
+The diff highlights overall score delta, dimension deltas, new regressions, recovered cases, new checks, removed checks, and the biggest score drops.
+
 ## Generate A CI Summary
 
 ```bash
@@ -85,6 +98,14 @@ npx @a2zai-ai/driftcheck summary --run .driftcheck/runs/latest.json
 ```
 
 The GitHub Action writes this summary to the workflow run automatically, so PR authors can see the overall score, dimension scores, model pair, and cases needing review without opening artifacts.
+
+To include a regression review in the summary:
+
+```bash
+npx @a2zai-ai/driftcheck summary \
+  --run .driftcheck/runs/latest.json \
+  --base .driftcheck/runs/baseline.json
+```
 
 ## Publish A Proof Card
 
@@ -129,6 +150,7 @@ Supported categories:
 - `tool-calling`
 - `rag-faithfulness`
 - `model-migration`
+- `agent-workflows`
 
 Supported score dimensions:
 
@@ -136,6 +158,19 @@ Supported score dimensions:
 - `safety`
 - `latency`
 - `cost`
+
+String and regex assertions are supported:
+
+```yaml
+expectedContains:
+  - confirm
+expectedRegex:
+  - "manual (review|handoff|escalation)"
+forbiddenContains:
+  - completed successfully
+forbiddenRegex:
+  - "deleting .* now"
+```
 
 ## Live Model Execution
 
@@ -168,6 +203,7 @@ jobs:
       - uses: a2zai-ai/driftcheck@v0
         with:
           fail-threshold: 70
+          baseline-run: .driftcheck/runs/baseline.json
           baseline-model: gpt-4o-mini
           candidate-model: gpt-4.1-mini
 ```
@@ -185,5 +221,5 @@ DriftCheck is local-first:
 
 - npm package publication as `@a2zai-ai/driftcheck`
 - standalone `a2zai-ai/driftcheck` public repo
-- richer GitHub Action summaries
-- more starter packs for agents, support bots, coding workflows, and RAG apps
+- richer CI artifacts for build systems beyond GitHub Actions
+- more starter packs for support bots, coding workflows, and RAG apps

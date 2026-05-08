@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { LIVE_MODEL_COMPARE_PACK, LIVE_PACKS, STARTER_PACKS } = require('../lib/starter-packs');
-const { combineReports, getProject, loadPack, renderGithubSummary, renderMarkdown, runPack } = require('../lib/engine');
+const { combineReports, diffReports, getProject, loadPack, renderDiffMarkdown, renderGithubSummary, renderMarkdown, runPack } = require('../lib/engine');
 
 function parseArgs(argv) {
   const args = { _: [] };
@@ -14,7 +14,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = item.slice(2);
-    if (key === 'force' || key === 'live' || key === 'public') {
+    if (key === 'force' || key === 'live' || key === 'public' || key === 'json') {
       args[key] = true;
       continue;
     }
@@ -39,9 +39,10 @@ function printHelp() {
 
 Usage:
   driftcheck init [--force] [--live]
-  driftcheck check [--pack tool-calling] [--baseline-model gpt-4o-mini] [--candidate-model gpt-4.1-mini]
+  driftcheck check [--pack tool-calling] [--baseline-model gpt-4o-mini] [--candidate-model gpt-4.1-mini] [--json] [--output driftcheck-report.md]
   driftcheck compare --baseline-model gpt-4o-mini --candidate-model gpt-4.1-mini
-  driftcheck summary [--run .driftcheck/runs/latest.json] [--fail-threshold 70]
+  driftcheck diff --base .driftcheck/runs/baseline.json --head .driftcheck/runs/latest.json [--json] [--output driftcheck-diff.md]
+  driftcheck summary [--run .driftcheck/runs/latest.json] [--base .driftcheck/runs/baseline.json] [--fail-threshold 70]
   driftcheck publish --run .driftcheck/runs/latest.json [--public]
 
 Environment:
@@ -59,6 +60,14 @@ function getModelOverrides(args) {
     baselineModel: args['baseline-model'] || process.env.DRIFTCHECK_BASELINE_MODEL || '',
     candidateModel: args['candidate-model'] || process.env.DRIFTCHECK_CANDIDATE_MODEL || '',
   };
+}
+
+function writeInfo(args, message) {
+  if (args.json) {
+    console.error(message);
+    return;
+  }
+  console.log(message);
 }
 
 function init(args) {
@@ -102,12 +111,12 @@ async function check(args) {
   const reports = [];
   const modelOverrides = getModelOverrides(args);
   for (const pack of packs) {
-    console.log(`Running ${pack.name}...`);
+    writeInfo(args, `Running ${pack.name}...`);
     reports.push(await runPack(pack, project, createdAt, { modelOverrides }));
   }
 
   const report = combineReports(reports, project, createdAt);
-  writeReport(cwd, report, createdAt);
+  writeReport(cwd, report, createdAt, args);
 }
 
 async function compare(args) {
@@ -119,9 +128,9 @@ async function compare(args) {
     throw new Error('compare requires --baseline-model and --candidate-model.');
   }
   const pack = loadInlinePack(LIVE_MODEL_COMPARE_PACK);
-  console.log(`Comparing ${modelOverrides.baselineModel} → ${modelOverrides.candidateModel}...`);
+  writeInfo(args, `Comparing ${modelOverrides.baselineModel} → ${modelOverrides.candidateModel}...`);
   const report = await runPack(pack, project, createdAt, { modelOverrides });
-  writeReport(cwd, report, createdAt);
+  writeReport(cwd, report, createdAt, args);
 }
 
 function loadInlinePack(pack) {
@@ -132,19 +141,21 @@ function loadInlinePack(pack) {
   return loadPack(filePath);
 }
 
-function writeReport(cwd, report, createdAt) {
+function writeReport(cwd, report, createdAt, args = {}) {
   const runsDir = path.join(cwd, '.driftcheck', 'runs');
   ensureDir(runsDir);
   const timestamp = createdAt.replace(/[:.]/g, '-');
   const runPath = path.join(runsDir, `${timestamp}-${report.pack.id}.json`);
   const latestPath = path.join(runsDir, 'latest.json');
-  const markdownPath = path.join(cwd, 'driftcheck-report.md');
+  const markdownPath = path.resolve(cwd, args.output || 'driftcheck-report.md');
+  ensureDir(path.dirname(markdownPath));
   const json = `${JSON.stringify(report, null, 2)}\n`;
   fs.writeFileSync(runPath, json, 'utf8');
   fs.writeFileSync(latestPath, json, 'utf8');
   fs.writeFileSync(markdownPath, renderMarkdown(report), 'utf8');
-  console.log(`Score: ${report.scores.overall}/100`);
-  console.log(`Wrote ${path.relative(cwd, latestPath)} and driftcheck-report.md`);
+  writeInfo(args, `Score: ${report.scores.overall}/100`);
+  writeInfo(args, `Wrote ${path.relative(cwd, latestPath)} and ${path.relative(cwd, markdownPath)}`);
+  if (args.json) console.log(json.trim());
 }
 
 async function publish(args) {
@@ -176,8 +187,40 @@ function summary(args) {
   const runPath = path.resolve(cwd, args.run || path.join('.driftcheck', 'runs', 'latest.json'));
   if (!fs.existsSync(runPath)) throw new Error(`Run report not found: ${runPath}`);
   const report = JSON.parse(fs.readFileSync(runPath, 'utf8'));
+  const diff = args.base ? loadDiff(cwd, args.base, args.run || path.join('.driftcheck', 'runs', 'latest.json')) : null;
   const failThreshold = Number(args['fail-threshold'] || 70);
-  console.log(renderGithubSummary(report, { failThreshold: Number.isFinite(failThreshold) ? failThreshold : 70 }));
+  console.log(renderGithubSummary(report, { failThreshold: Number.isFinite(failThreshold) ? failThreshold : 70, diff }));
+}
+
+function diff(args) {
+  const cwd = process.cwd();
+  const basePath = args.base || args.baseline;
+  const headPath = args.head || args.run || path.join('.driftcheck', 'runs', 'latest.json');
+  if (!basePath) throw new Error('diff requires --base <run.json>.');
+  const diffReport = loadDiff(cwd, basePath, headPath);
+  if (args.json) {
+    console.log(JSON.stringify(diffReport, null, 2));
+    return;
+  }
+  const markdown = renderDiffMarkdown(diffReport);
+  if (args.output) {
+    const outputPath = path.resolve(cwd, args.output);
+    ensureDir(path.dirname(outputPath));
+    fs.writeFileSync(outputPath, markdown, 'utf8');
+    console.log(`Wrote ${path.relative(cwd, outputPath)}`);
+    return;
+  }
+  console.log(markdown);
+}
+
+function loadDiff(cwd, basePath, headPath) {
+  const resolvedBase = path.resolve(cwd, basePath);
+  const resolvedHead = path.resolve(cwd, headPath);
+  if (!fs.existsSync(resolvedBase)) throw new Error(`Base run report not found: ${resolvedBase}`);
+  if (!fs.existsSync(resolvedHead)) throw new Error(`Head run report not found: ${resolvedHead}`);
+  const baseReport = JSON.parse(fs.readFileSync(resolvedBase, 'utf8'));
+  const headReport = JSON.parse(fs.readFileSync(resolvedHead, 'utf8'));
+  return diffReports(baseReport, headReport);
 }
 
 async function main() {
@@ -188,6 +231,7 @@ async function main() {
     if (command === 'init') return init(args);
     if (command === 'check') return await check(args);
     if (command === 'compare') return await compare(args);
+    if (command === 'diff') return diff(args);
     if (command === 'summary') return summary(args);
     if (command === 'publish') return await publish(args);
     throw new Error(`Unknown command: ${command}`);

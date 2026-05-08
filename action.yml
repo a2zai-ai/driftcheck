@@ -21,6 +21,10 @@ inputs:
     description: Override execution.candidateModel for live model packs.
     required: false
     default: ''
+  baseline-run:
+    description: Optional prior DriftCheck run JSON to compare against in the GitHub summary.
+    required: false
+    default: ''
   driftcheck-token:
     description: Token for hosted A2ZAI publish.
     required: false
@@ -63,7 +67,11 @@ runs:
       shell: bash
       run: |
         if [ -f ".driftcheck/runs/latest.json" ] && [ -n "$GITHUB_STEP_SUMMARY" ]; then
-          npx @a2zai-ai/driftcheck summary --run .driftcheck/runs/latest.json --fail-threshold "${{ inputs.fail-threshold }}" >> "$GITHUB_STEP_SUMMARY"
+          SUMMARY_ARGS=(--run .driftcheck/runs/latest.json --fail-threshold "${{ inputs.fail-threshold }}")
+          if [ -n "${{ inputs.baseline-run }}" ]; then
+            SUMMARY_ARGS+=(--base "${{ inputs.baseline-run }}")
+          fi
+          npx @a2zai-ai/driftcheck summary "${SUMMARY_ARGS[@]}" >> "$GITHUB_STEP_SUMMARY"
         fi
     - name: Enforce threshold
       shell: bash

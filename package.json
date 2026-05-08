@@ -1,6 +1,6 @@
 {
   "name": "@a2zai-ai/driftcheck",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Local-first regression intelligence for AI builders.",
   "license": "MIT",
   "type": "commonjs",
@@ -9,12 +9,14 @@
   },
   "files": [
     "bin",
+    "docs",
     "lib",
     "README.md",
     "action.yml"
   ],
   "scripts": {
-    "smoke": "node bin/driftcheck.js init --force && node bin/driftcheck.js check"
+    "smoke": "node bin/driftcheck.js init --force && node bin/driftcheck.js check",
+    "test": "node test/engine.test.js"
   },
   "dependencies": {
     "yaml": "^2.8.2"
